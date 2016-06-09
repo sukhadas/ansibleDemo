@@ -40,14 +40,59 @@
         - webapps
         - work
         - logs
-
+        
+    - name: Link tomcat instance A
+      file: src=/var/lib/tomcat7/conf/{{ item }} dest=/var/lib/tomcat7-a/conf/ state=link
+      with_items:
+        - catalina.properties
+        - web.xml
+        - server.xml
+        - policy.d
+      
+    - name: Link tomcat instance B
+      file: src=/var/lib/tomcat7/conf/{{ item }} dest=/var/lib/tomcat7-b/conf/ state=link
+      with_items:
+        - catalina.properties
+        - web.xml
+        - server.xml
+        - policy.d
+        
+    - name: Instance A | Create Service
+      copy: src=/etc/init.d/tomcat7 dest=/etc/init.d/{{ item }}
+      with_items:
+        - tomcat7-a
+        - tomcat7-b
+        
+    - name: Create /usr/share/tomcat7 for new instances
+      file: path=/usr/share/{{ item }} state=directory
+      with_items:
+       - tomcat7-a
+       - tomcat7-b
+       
+    - name: Copy content to new instances
+      copy: src=/usr/share/tomcat7/* dest=/usr/share/{{ item }}
+      with_items:
+       - tomcat7-a
+       - tomcat7-b
+      
     - name: Deploy application
       git: repo=https://github.com/sukhadas/ansible.git
            dest=/var/lib/{{ item }}/webapps/ansible
       with_items:
         - tomcat7-a
         - tomcat7-b
-
-    - name: Restart tomcat7
-      service: name=tomcat7 state=restarted
+    - name: Delete configuration file of apache2 and replace with new one
+      file: path=/etc/apache2/sites-enabled/000-default.conf state=absent
+      
+    - name: Adding already created Load balancing file
+      file: src=./000-default.conf dest=/etc/apache2/sites-enabled/000-default.conf
+      
+    - name: Start all services
+      service: name={{ item }} state=started enabled=yes
+      with_items:
+       - tomcat7
+       - tomcat7-a
+       - tomcat7-b
+       - apache2
+       - mysql
   
