@@ -1,0 +1,53 @@
+---
+- hosts: all
+  remote_user: ubuntu
+  sudo: yes
+  tasks:
+    - name: Install packages
+      apt: name={{ item }} state=present force=true
+      with_items:
+        - git-core
+        - apache2
+        - tomcat7
+        - mysql-server-5.6
+
+    - name: Enable service on start up
+      service: name={{ item }} state=started enabled=yes
+      with_items:
+        - apache2
+        - tomcat7
+        - mysql
+    - name: Create Tomcat7-a instance
+      file: path=/var/lib/tomcat7-a state=directory mode=0777
+
+    - name: Create Tomcat7-b instance
+      file: path=/var/lib/tomcat7-b state=directory mode=0777
+
+    - name: Create conf files for Tomcat instances
+      file: path=/var/lib/tomcat7-a/{{ item }} state=directory mode=0777 owner=tomcat7
+      with_items:
+        - conf
+        - temp
+        - webapps
+        - work
+        - logs
+
+    - name: Create conf files for Tomcat instances
+      file: path=/var/lib/tomcat7-b/{{ item }} state=directory mode=0777 owner=tomcat7
+      with_items:
+        - conf
+        - temp
+        - webapps
+        - work
+        - logs
+
+    - name: Deploy application
+      git: repo=https://github.com/sukhadas/ansible.git
+           dest=/var/lib/{{ item }}/webapps/ansible
+      with_items:
+        - tomcat7-a
+        - tomcat7-b
+
+    - name: Restart tomcat7
+      service: name=tomcat7 state=restarted
+  
